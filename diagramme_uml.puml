@@ -1,0 +1,385 @@
+@startuml RideSharing
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam classBackgroundColor #dae8fc
+skinparam classBorderColor #6c8ebf
+skinparam classArrowColor #333333
+skinparam shadowing false
+skinparam linetype ortho
+
+skinparam class {
+    BackgroundColor<<enumeration>> #f8cecc
+    BorderColor<<enumeration>>     #b85450
+    BackgroundColor<<abstract>>    #fff2cc
+    BorderColor<<abstract>>        #d6b656
+    BackgroundColor<<interface>>   #fff2cc
+    BorderColor<<interface>>       #d6b656
+    BackgroundColor<<Singleton>>   #ffe6cc
+    BorderColor<<Singleton>>       #d79b00
+    BackgroundColor<<Builder>>     #ffe6cc
+    BorderColor<<Builder>>         #d79b00
+    BackgroundColor<<Strategy>>    #dae8fc
+    BorderColor<<Strategy>>        #6c8ebf
+    BackgroundColor<<State>>       #dae8fc
+    BorderColor<<State>>           #6c8ebf
+    BackgroundColor<<Observer>>    #fff2cc
+    BorderColor<<Observer>>        #d6b656
+}
+
+' ============================================================
+'  ENUMERATIONS
+' ============================================================
+
+enum RideType <<enumeration>> {
+    SEDAN
+    SUV
+    AUTO
+}
+
+enum TripStatus <<enumeration>> {
+    REQUESTED
+    ASSIGNED
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+}
+
+enum DriverStatus <<enumeration>> {
+    OFFLINE
+    ONLINE
+    IN_TRIP
+}
+
+' ============================================================
+'  PATTERN OBSERVER
+' ============================================================
+
+abstract class TripObserver <<Observer>> {
+    + {abstract} on_update(trip : Trip) : void
+}
+
+note top of TripObserver
+  <b><<Observer>></b>
+  Interface ABC.
+  User (Rider, Driver) s'y abonne.
+  Trip notifie a chaque changement d'etat.
+end note
+
+' ============================================================
+'  USER / RIDER / DRIVER
+' ============================================================
+
+abstract class User <<abstract>> {
+    - _id          : str
+    - _name        : str
+    - _contact     : str
+    - _trip_history : List[Trip]
+    --
+    + get_id()              : str
+    + get_name()            : str
+    + get_contact()         : str
+    + get_trip_history()    : List[Trip]
+    + add_trip_to_history(trip : Trip) : void
+}
+
+class Rider {
+    --
+    + on_update(trip : Trip) : void
+}
+
+class Driver {
+    - _vehicle          : Vehicle
+    - _current_location : Location
+    - _status           : DriverStatus
+    --
+    + get_vehicle()              : Vehicle
+    + get_status()               : DriverStatus
+    + set_status(s : DriverStatus) : void
+    + get_current_location()     : Location
+    + set_current_location(loc : Location) : void
+    + on_update(trip : Trip)     : void
+}
+
+' ============================================================
+'  VEHICLE / LOCATION
+' ============================================================
+
+class Vehicle {
+    - _license_number : str
+    - _model          : str
+    - _type           : RideType
+    --
+    + get_license_number() : str
+    + get_model()          : str
+    + get_type()           : RideType
+}
+
+class Location {
+    - _latitude  : float
+    - _longitude : float
+    --
+    + distance_to(other : Location) : float
+    + __str__() : str
+}
+
+' ============================================================
+'  PATTERN BUILDER  — Trip + TripBuilder
+' ============================================================
+
+class TripBuilder <<Builder>> {
+    - _id                : str
+    - _rider             : Rider
+    - _pickup_location   : Location
+    - _dropoff_location  : Location
+    - _fare              : float
+    --
+    + with_rider(r : Rider)              : TripBuilder
+    + with_pickup_location(l : Location) : TripBuilder
+    + with_dropoff_location(l : Location): TripBuilder
+    + with_fare(f : float)               : TripBuilder
+    + build()                            : Trip
+}
+
+note right of TripBuilder
+  <b><<Builder>></b>
+  Classe interne de Trip
+  (Trip.TripBuilder).
+  Construction fluente par etapes.
+end note
+
+class Trip {
+    - _id                : str
+    - _rider             : Rider
+    - _driver            : Driver
+    - _pickup_location   : Location
+    - _dropoff_location  : Location
+    - _fare              : float
+    - _status            : TripStatus
+    - _current_state     : TripState
+    - _observers         : List[TripObserver]
+    --
+    + add_observer(obs : TripObserver) : void
+    + assign_driver(driver : Driver)   : void
+    + start_trip()                     : void
+    + end_trip()                       : void
+    + get_id()                         : str
+    + get_rider()                      : Rider
+    + get_driver()                     : Driver
+    + get_pickup_location()            : Location
+    + get_dropoff_location()           : Location
+    + get_fare()                       : float
+    + get_status()                     : TripStatus
+    + set_state(s : TripState)         : void
+    + set_status(s : TripStatus)       : void
+    + set_driver(d : Driver)           : void
+    - _notify_observers()              : void
+}
+
+' ============================================================
+'  PATTERN STATE  — TripState + 4 etats
+' ============================================================
+
+abstract class TripState <<State>> {
+    + {abstract} request(trip : Trip)                  : void
+    + {abstract} assign(trip : Trip, driver : Driver)  : void
+    + {abstract} start(trip : Trip)                    : void
+    + {abstract} end(trip : Trip)                      : void
+}
+
+note top of TripState
+  <b><<State>></b>
+  Comportement de Trip
+  selon l'etat courant.
+  Transitions :
+  REQUESTED -> ASSIGNED
+  -> IN_PROGRESS -> COMPLETED
+end note
+
+class RequestedState <<State>> {
+    + request(trip : Trip) : void
+    + assign(trip : Trip, driver : Driver) : void
+    + start(trip : Trip)   : void
+    + end(trip : Trip)     : void
+}
+
+class AssignedState <<State>> {
+    + request(trip : Trip) : void
+    + assign(trip : Trip, driver : Driver) : void
+    + start(trip : Trip)   : void
+    + end(trip : Trip)     : void
+}
+
+class InProgressState <<State>> {
+    + request(trip : Trip) : void
+    + assign(trip : Trip, driver : Driver) : void
+    + start(trip : Trip)   : void
+    + end(trip : Trip)     : void
+}
+
+class CompletedState <<State>> {
+    + request(trip : Trip) : void
+    + assign(trip : Trip, driver : Driver) : void
+    + start(trip : Trip)   : void
+    + end(trip : Trip)     : void
+}
+
+' ============================================================
+'  PATTERN STRATEGY  — PricingStrategy
+' ============================================================
+
+abstract class PricingStrategy <<Strategy>> {
+    + {abstract} calculate_fare(pickup : Location, dropoff : Location, ride_type : RideType) : float
+}
+
+note top of PricingStrategy
+  <b><<Strategy>></b>
+  Algorithme de tarification
+  interchangeable a l'execution.
+end note
+
+class FlatRatePricingStrategy <<Strategy>> {
+    + BASE_FARE : float = 5.0
+    + FLAT_RATE : float = 1.5
+    --
+    + calculate_fare(pickup : Location, dropoff : Location, ride_type : RideType) : float
+}
+
+class VehicleBasedPricingStrategy <<Strategy>> {
+    + BASE_FARE    : float = 2.50
+    + RATE_PER_KM  : Dict[RideType, float]
+    --
+    + calculate_fare(pickup : Location, dropoff : Location, ride_type : RideType) : float
+}
+
+' ============================================================
+'  PATTERN STRATEGY  — DriverMatchingStrategy
+' ============================================================
+
+abstract class DriverMatchingStrategy <<Strategy>> {
+    + {abstract} find_drivers(drivers : List[Driver], pickup : Location, ride_type : RideType) : List[Driver]
+}
+
+note top of DriverMatchingStrategy
+  <b><<Strategy>></b>
+  Algorithme de matching
+  interchangeable a l'execution.
+end note
+
+class NearestDriverMatchingStrategy <<Strategy>> {
+    + MAX_DISTANCE_KM : float = 5.0
+    --
+    + find_drivers(drivers : List[Driver], pickup : Location, ride_type : RideType) : List[Driver]
+}
+
+' ============================================================
+'  PATTERN SINGLETON  — RideSharingService
+' ============================================================
+
+class RideSharingService <<Singleton>> {
+    - {static} _instance  : RideSharingService
+    - {static} _lock      : Lock
+    - _riders             : Dict[str, Rider]
+    - _drivers            : Dict[str, Driver]
+    - _trips              : Dict[str, Trip]
+    - _pricing_strategy   : PricingStrategy
+    - _driver_matching_strategy : DriverMatchingStrategy
+    - _initialized        : bool
+    --
+    + {static} get_instance()                          : RideSharingService
+    + set_pricing_strategy(s : PricingStrategy)        : void
+    + set_driver_matching_strategy(s : DriverMatchingStrategy) : void
+    + register_rider(name : str, contact : str)        : Rider
+    + register_driver(name, contact, vehicle, location): Driver
+    + request_ride(rider_id, pickup, dropoff, ride_type) : Trip
+    + accept_ride(driver_id : str, trip_id : str)      : void
+    + start_trip(trip_id : str)                        : void
+    + end_trip(trip_id : str)                          : void
+}
+
+note right of RideSharingService
+  <b><<Singleton>></b>
+  Une seule instance globale.
+  Thread-safe via double-check
+  locking (_instance + _lock).
+end note
+
+' ============================================================
+'  DEMO
+' ============================================================
+
+class RideSharingServiceDemo {
+    --
+    + {static} main() : void
+}
+
+' ============================================================
+'  HERITAGE  /  REALISATION
+' ============================================================
+
+TripObserver <|-- User
+User         <|-- Rider
+User         <|-- Driver
+
+TripState    <|-- RequestedState
+TripState    <|-- AssignedState
+TripState    <|-- InProgressState
+TripState    <|-- CompletedState
+
+PricingStrategy       <|-- FlatRatePricingStrategy
+PricingStrategy       <|-- VehicleBasedPricingStrategy
+DriverMatchingStrategy <|-- NearestDriverMatchingStrategy
+
+' ============================================================
+'  ASSOCIATIONS  /  COMPOSITIONS  /  DEPENDANCES
+' ============================================================
+
+' Trip contient un etat (composition)
+Trip "1" *--> "1"   TripState      : _current_state
+
+' Trip observe ses observeurs (agregation)
+Trip "1" o--> "*"   TripObserver   : _observers
+
+' Trip referencie ses acteurs
+Trip  --> "1"       Rider          : _rider
+Trip  --> "0..1"    Driver         : _driver
+Trip  --> "1"       Location       : _pickup_location
+Trip  --> "1"       Location       : _dropoff_location
+
+' Trip depend de l'enum TripStatus
+Trip  ..>           TripStatus     : _status
+
+' Builder cree un Trip
+TripBuilder  ..>    Trip           : <<create>>
+TripBuilder  ..>    Rider
+TripBuilder  ..>    Location
+
+' Driver compose Vehicle
+Driver "1" *--> "1" Vehicle        : _vehicle
+Driver      -->     Location       : _current_location
+Driver      ..>     DriverStatus   : _status
+
+' Vehicle depend de RideType
+Vehicle     ..>     RideType       : _type
+
+' PricingStrategy utilise Location et RideType
+PricingStrategy ..> Location
+PricingStrategy ..> RideType
+
+' DriverMatchingStrategy utilise Driver, Location, RideType
+DriverMatchingStrategy ..> Driver
+DriverMatchingStrategy ..> Location
+DriverMatchingStrategy ..> RideType
+
+' RideSharingService agregation
+RideSharingService "1" o--> "*"   Rider          : _riders
+RideSharingService "1" o--> "*"   Driver         : _drivers
+RideSharingService "1" o--> "*"   Trip           : _trips
+RideSharingService "1" o--> "1"   PricingStrategy       : _pricing_strategy
+RideSharingService "1" o--> "1"   DriverMatchingStrategy : _driver_matching_strategy
+
+' Demo utilise le service
+RideSharingServiceDemo ..> RideSharingService : utilise
+
+@enduml
+

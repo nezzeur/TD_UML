@@ -1,0 +1,264 @@
+@startuml RideSharing_Ameliore
+title Diagramme de classes - Projet RideSharing (version amelioree)
+enum RideType <<enumeration>> {
+    SEDAN
+    SUV
+    AUTO
+}
+enum TripStatus <<enumeration>> {
+    REQUESTED
+    ASSIGNED
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+}
+enum DriverStatus <<enumeration>> {
+    OFFLINE
+    ONLINE
+    IN_TRIP
+}
+interface ITripObserver <<interface>> {
+    + on_update(trip: Trip)
+}
+interface IUser <<interface>> {
+    + get_id() : str
+    + get_name() : str
+    + get_contact() : str
+    + get_trip_history() : List
+    + add_trip_to_history(trip: Trip)
+}
+interface IPricingStrategy <<interface>> {
+    + calculate_fare(pickup: Location, dropoff: Location, ride_type: RideType) : float
+}
+interface IDriverMatchingStrategy <<interface>> {
+    + find_drivers(drivers: List, pickup: Location, ride_type: RideType) : List
+}
+interface ITripRepository <<interface>> {
+    + save(trip: Trip)
+    + find_by_id(trip_id: str) : Trip
+    + find_all() : List
+}
+interface IUserRepository <<interface>> {
+    + save(user: IUser)
+    + find_by_id(user_id: str) : IUser
+}
+abstract class User {
+    # _id : str
+    # _name : str
+    # _contact : str
+    # _trip_history : List
+    + add_trip_to_history(trip: Trip)
+    + get_trip_history() : List
+    + get_id() : str
+    + get_name() : str
+    + get_contact() : str
+}
+class Rider {
+    + on_update(trip: Trip)
+}
+class Driver {
+    - _vehicle : Vehicle
+    - _current_location : Location
+    - _status : DriverStatus
+    + get_vehicle() : Vehicle
+    + get_status() : DriverStatus
+    + set_status(status: DriverStatus)
+    + get_current_location() : Location
+    + set_current_location(location: Location)
+    + on_update(trip: Trip)
+}
+class Location <<ValueObject>> {
+    - _latitude : float
+    - _longitude : float
+    + distance_to(other: Location) : float
+    + __str__() : str
+}
+class Vehicle <<ValueObject>> {
+    - _license_number : str
+    - _model : str
+    - _type : RideType
+    + get_license_number() : str
+    + get_model() : str
+    + get_type() : RideType
+}
+class Trip {
+    - _id : str
+    - _rider : Rider
+    - _driver : Driver
+    - _pickup_location : Location
+    - _dropoff_location : Location
+    - _fare : float
+    - _status : TripStatus
+    - _current_state : TripState
+    - _observers : List
+    + add_observer(observer: ITripObserver)
+    + assign_driver(driver: Driver)
+    + start_trip()
+    + end_trip()
+    + get_id() : str
+    + get_status() : TripStatus
+    + get_fare() : float
+    - _notify_observers()
+}
+class TripBuilder <<Builder>> {
+    - _id : str
+    - _rider : Rider
+    - _pickup_location : Location
+    - _dropoff_location : Location
+    - _fare : float
+    + with_rider(rider: Rider) : TripBuilder
+    + with_pickup_location(loc: Location) : TripBuilder
+    + with_dropoff_location(loc: Location) : TripBuilder
+    + with_fare(fare: float) : TripBuilder
+    + build() : Trip
+}
+note right of TripBuilder
+  Ameliore : classe independante
+  (SRP - separee de Trip)
+end note
+abstract class TripState <<State>> {
+    + {abstract} request(trip: Trip)
+    + {abstract} assign(trip: Trip, driver: Driver)
+    + {abstract} start(trip: Trip)
+    + {abstract} end(trip: Trip)
+}
+class RequestedState {
+    + request(trip: Trip)
+    + assign(trip: Trip, driver: Driver)
+    + start(trip: Trip)
+    + end(trip: Trip)
+}
+class AssignedState {
+    + request(trip: Trip)
+    + assign(trip: Trip, driver: Driver)
+    + start(trip: Trip)
+    + end(trip: Trip)
+}
+class InProgressState {
+    + request(trip: Trip)
+    + assign(trip: Trip, driver: Driver)
+    + start(trip: Trip)
+    + end(trip: Trip)
+}
+class CompletedState {
+    + request(trip: Trip)
+    + assign(trip: Trip, driver: Driver)
+    + start(trip: Trip)
+    + end(trip: Trip)
+}
+class CancelledState {
+    + request(trip: Trip)
+    + assign(trip: Trip, driver: Driver)
+    + start(trip: Trip)
+    + end(trip: Trip)
+}
+note bottom of CancelledState
+  NOUVEAU : etat manquant dans
+  le code original.
+  TripStatus.CANCELLED existait
+  sans etat correspondant.
+end note
+class FlatRatePricingStrategy {
+    + BASE_FARE : float = 5.0
+    + FLAT_RATE : float = 1.5
+    + calculate_fare(pickup, dropoff, ride_type) : float
+}
+class VehicleBasedPricingStrategy {
+    + BASE_FARE : float = 2.50
+    + RATE_PER_KM : Dict
+    + calculate_fare(pickup, dropoff, ride_type) : float
+}
+class NearestDriverMatchingStrategy {
+    + MAX_DISTANCE_KM : float = 5.0
+    + find_drivers(drivers, pickup, ride_type) : List
+}
+class PriorityDriverMatchingStrategy {
+    + find_drivers(drivers, pickup, ride_type) : List
+}
+note right of PriorityDriverMatchingStrategy
+  NOUVEAU : exemple de
+  nouvelle strategie proposee
+end note
+class InMemoryTripRepository <<Repository>> {
+    - _trips : Dict
+    + save(trip: Trip)
+    + find_by_id(trip_id: str) : Trip
+    + find_all() : List
+}
+class InMemoryUserRepository <<Repository>> {
+    - _users : Dict
+    + save(user: IUser)
+    + find_by_id(user_id: str) : IUser
+}
+note right of InMemoryTripRepository
+  NOUVEAU : couche Repository.
+  Respecte le SRP et le DIP.
+  Remplacable par SQLTripRepository.
+end note
+class RideSharingService <<Singleton>> {
+    - {static} _instance : RideSharingService
+    - {static} _lock : Lock
+    - _rider_repository : IUserRepository
+    - _driver_repository : IUserRepository
+    - _trip_repository : ITripRepository
+    - _pricing_strategy : IPricingStrategy
+    - _driver_matching_strategy : IDriverMatchingStrategy
+    - _initialized : bool
+    + {static} get_instance() : RideSharingService
+    + set_pricing_strategy(strategy: IPricingStrategy)
+    + set_driver_matching_strategy(strategy: IDriverMatchingStrategy)
+    + register_rider(name: str, contact: str) : Rider
+    + register_driver(name: str, contact: str, vehicle: Vehicle, location: Location) : Driver
+    + request_ride(rider_id: str, pickup: Location, dropoff: Location, ride_type: RideType) : Trip
+    + accept_ride(driver_id: str, trip_id: str)
+    + start_trip(trip_id: str)
+    + end_trip(trip_id: str)
+}
+note top of RideSharingService
+  Singleton thread-safe.
+  Depend d'interfaces (DIP)
+  et delegue le stockage aux
+  Repositories.
+end note
+ITripObserver <|.. User
+IUser <|.. User
+User <|-- Rider
+User <|-- Driver
+TripState <|-- RequestedState
+TripState <|-- AssignedState
+TripState <|-- InProgressState
+TripState <|-- CompletedState
+TripState <|-- CancelledState
+IPricingStrategy <|.. FlatRatePricingStrategy
+IPricingStrategy <|.. VehicleBasedPricingStrategy
+IDriverMatchingStrategy <|.. NearestDriverMatchingStrategy
+IDriverMatchingStrategy <|.. PriorityDriverMatchingStrategy
+ITripRepository <|.. InMemoryTripRepository
+IUserRepository <|.. InMemoryUserRepository
+Trip "1" o-- "1" TripState : _current_state
+Trip "1" *-- "*" ITripObserver : _observers
+Trip --> "1" Rider : _rider
+Trip --> "0..1" Driver : _driver
+Trip --> "1" Location : _pickup_location
+Trip --> "1" Location : _dropoff_location
+Trip --> TripStatus : _status
+TripBuilder ..> Trip : create
+TripBuilder ..> Rider
+TripBuilder ..> Location
+Driver "1" *-- "1" Vehicle : _vehicle
+Driver --> DriverStatus : _status
+Driver --> Location : _current_location
+Vehicle --> RideType : _type
+IPricingStrategy ..> Location : utilise
+IPricingStrategy ..> RideType : utilise
+IDriverMatchingStrategy ..> Driver : utilise
+IDriverMatchingStrategy ..> Location : utilise
+IDriverMatchingStrategy ..> RideType : utilise
+RideSharingService "1" o-- "1" IUserRepository : _rider_repo
+RideSharingService "1" o-- "1" IUserRepository : _driver_repo
+RideSharingService "1" o-- "1" ITripRepository : _trip_repo
+RideSharingService "1" o-- "1" IPricingStrategy : _pricing_strategy
+RideSharingService "1" o-- "1" IDriverMatchingStrategy : _matching_strategy
+InMemoryTripRepository --> Trip
+InMemoryUserRepository --> IUser
+@enduml
