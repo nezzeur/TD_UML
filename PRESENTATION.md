@@ -305,13 +305,49 @@ logging.basicConfig(
 
 ---
 
-### Amélioration 5 — `RideSharingService` trop grande (SRP / couche Repository)
+## Amélioration 5 — RideSharingService trop grande (SRP / couche Repository)
 
-**Problème :** `RideSharingService` gère à la fois :
-- la **logique métier** (créer un trip, accepter une course…)
-- le **stockage** des entités (`_riders`, `_drivers`, `_trips` en dictionnaires)
+### Problème
 
-C'est une violation du **SRP**. De plus, impossible de brancher une vraie base de données sans modifier le Service.
+La classe `RideSharingService` gère actuellement **plusieurs responsabilités** :
+
+- la **logique métier** :
+  - créer un trajet (`createTrip`)
+  - accepter une course
+  - associer un driver et un rider
+
+- le **stockage des données** :
+  - `_riders`
+  - `_drivers`
+  - `_trips` (stockés dans des dictionnaires)
+
+Cela constitue une **violation du principe SRP (Single Responsibility Principle)**.
+
+Une classe ne devrait avoir **qu’une seule responsabilité**, c’est-à-dire **une seule raison de changer**.
+
+Dans ce cas, si l’on souhaite :
+- modifier la **logique métier**
+- changer la **méthode de stockage** (par exemple utiliser une base de données)
+
+il faudra modifier **la même classe**, ce qui rend le code **moins maintenable et moins évolutif**.
+
+De plus, cette conception empêche de **remplacer facilement les dictionnaires par une vraie base de données** sans modifier `RideSharingService`.
+
+### Solution
+
+La solution consiste à **séparer les responsabilités** en introduisant une **couche Repository** chargée de la gestion des données.
+
+On obtient alors :
+
+- `RideSharingService` → responsable de la **logique métier**
+- `RiderRepository`, `DriverRepository`, `TripRepository` → responsables du **stockage et de l'accès aux données**
+
+Cette séparation permet de :
+
+- respecter le **principe SRP**
+- rendre le code **plus modulaire**
+- **faciliter les tests unitaires**
+- permettre de **changer facilement le système de stockage** (ex : base de données) sans modifier la logique métier.
 
 **Code original (`ride_sharing_service.py`) :**
 ```python
