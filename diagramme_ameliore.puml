@@ -113,8 +113,13 @@ class TripBuilder <<Builder>> {
     + build() : Trip
 }
 note right of TripBuilder
-  Ameliore : classe independante
-  (SRP - separee de Trip)
+  AMELIORATION 1 - SRP
+  Avant : TripBuilder etait une
+  classe INTERNE de Trip.
+  Apres : classe independante
+  dans trip_builder.py.
+  => Une classe = une responsabilite.
+  => Meilleure testabilite.
 end note
 abstract class TripState <<State>> {
     + {abstract} request(trip: Trip)
@@ -153,10 +158,14 @@ class CancelledState {
     + end(trip: Trip)
 }
 note bottom of CancelledState
-  NOUVEAU : etat manquant dans
-  le code original.
-  TripStatus.CANCELLED existait
-  sans etat correspondant.
+  AMELIORATION 2 - Coherence metier
+  Avant : TripStatus.CANCELLED
+  existait dans l'enum MAIS aucun
+  etat CancelledState n'existait.
+  Apres : CancelledState ajoute +
+  methode cancel() dans Trip et
+  TripState pour gerer l'annulation
+  depuis REQUESTED ou ASSIGNED.
 end note
 class FlatRatePricingStrategy {
     + BASE_FARE : float = 5.0
@@ -176,8 +185,14 @@ class PriorityDriverMatchingStrategy {
     + find_drivers(drivers, pickup, ride_type) : List
 }
 note right of PriorityDriverMatchingStrategy
-  NOUVEAU : exemple de
-  nouvelle strategie proposee
+  AMELIORATION 4 - OCP
+  Avant : un seul algorithme de
+  matching (NearestDriver).
+  Apres : nouvelle strategie ajoutee
+  sans modifier le code existant.
+  Exemple : trier par note chauffeur
+  ou par experience.
+
 end note
 class InMemoryTripRepository <<Repository>> {
     - _trips : Dict
@@ -191,9 +206,13 @@ class InMemoryUserRepository <<Repository>> {
     + find_by_id(user_id: str) : IUser
 }
 note right of InMemoryTripRepository
-  NOUVEAU : couche Repository.
-  Respecte le SRP et le DIP.
-  Remplacable par SQLTripRepository.
+  AMELIORATION 3 - SRP + DIP
+  Avant : RideSharingService stockait
+  riders/drivers/trips dans des Dict
+  directement dans le service.
+  Apres : couche Repository separee.
+  Le Service depend d'interfaces
+  ITripRepository / IUserRepository.
 end note
 class RideSharingService <<Singleton>> {
     - {static} _instance : RideSharingService
@@ -215,10 +234,13 @@ class RideSharingService <<Singleton>> {
     + end_trip(trip_id: str)
 }
 note top of RideSharingService
-  Singleton thread-safe.
-  Depend d'interfaces (DIP)
-  et delegue le stockage aux
-  Repositories.
+  AMELIORATION 5 - Singleton + DIP
+  Avant : dependait de classes
+  concretes (Dict de Rider/Driver/Trip)
+  et melait logique metier et stockage.
+  Apres : depend uniquement d'interfaces
+  (IPricingStrategy, IDriverMatchingStrategy,
+  ITripRepository, IUserRepository).
 end note
 ITripObserver <|.. User
 IUser <|.. User
