@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/generate_png.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/generate_png.py" />
+              <option name="updatedContent" value="#!/usr/bin/env python3&#10;&quot;&quot;&quot;&#10;Script pour générer une image PNG à partir d'un fichier PlantUML.&#10;Utilise le wrapper Python plantuml.&#10;&quot;&quot;&quot;&#10;&#10;from plantuml import PlantUML&#10;import os&#10;&#10;# Chemin du fichier .puml&#10;puml_file = &quot;/home/noa/BUT2/automate/TD_UML/diagramme_complet.puml&quot;&#10;output_file = &quot;/home/noa/BUT2/automate/TD_UML/diagramme_complet.png&quot;&#10;&#10;# Lire le contenu du fichier .puml&#10;with open(puml_file, 'r', encoding='utf-8') as f:&#10;    puml_code = f.read()&#10;&#10;print(f&quot; Génération de l'image PNG...&quot;)&#10;print(f&quot;   Entrée  : {puml_file}&quot;)&#10;print(f&quot;   Sortie  : {output_file}&quot;)&#10;&#10;try:&#10;    # Créer une instance PlantUML avec le serveur public&#10;    # (fallback si pas de serveur local)&#10;    plnt = PlantUML(url='http://www.plantuml.com/plantuml/img/')&#10;    &#10;    # Générer l'image PNG&#10;    png_data = plnt.processes(puml_code)&#10;    &#10;    # Écrire le fichier PNG&#10;    with open(output_file, 'wb') as f:&#10;        f.write(png_data)&#10;    &#10;    print(f&quot;✅ Image PNG générée avec succès!&quot;)&#10;    print(f&quot;   Fichier créé : {output_file}&quot;)&#10;    print(f&quot;   Taille : {os.path.getsize(output_file)} bytes&quot;)&#10;    &#10;except Exception as e:&#10;    print(f&quot;❌ Erreur lors de la génération : {e}&quot;)&#10;    print(f&quot;   Conseil : Vérifier la connexion Internet ou utiliser un serveur PlantUML local.&quot;)&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
