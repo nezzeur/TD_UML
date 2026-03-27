@@ -1,0 +1,306 @@
+@startuml RideSharing_Complet
+title RideSharing System - Complete Architecture
+
+!define THEME_ENUM #f8cecc
+!define THEME_ABSTRACT #fff2cc
+!define THEME_SINGLETON #ffe6cc
+!define THEME_BUILDER #e6ccff
+!define THEME_STATE #d5e8d4
+!define THEME_STRATEGY #dae8fc
+!define THEME_NEW #c8e6c9
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 9
+skinparam shadowing false
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor #dae8fc
+    BorderColor #6c8ebf
+    BackgroundColor<<enumeration>> THEME_ENUM
+    BorderColor<<enumeration>> #b85450
+    BackgroundColor<<abstract>> THEME_ABSTRACT
+    BorderColor<<abstract>> #d6b656
+    BackgroundColor<<Singleton>> THEME_SINGLETON
+    BorderColor<<Singleton>> #d79b00
+    BackgroundColor<<Builder>> THEME_BUILDER
+    BorderColor<<Builder>> #9673a6
+    BackgroundColor<<State>> THEME_STATE
+    BorderColor<<State>> #82b366
+    BackgroundColor<<Strategy>> THEME_STRATEGY
+    BorderColor<<Strategy>> #6c8ebf
+    BackgroundColor<<NEW>> THEME_NEW
+    BorderColor<<NEW>> #388e3c
+}
+
+' ============================================================
+' PACKAGE 1: ENUMS & VALUE OBJECTS
+' ============================================================
+
+package "Enums & Value Objects" as PKG_ENUMS #f5f5f5 {
+    enum RideType <<enumeration>> {
+        SEDAN, SUV, AUTO
+    }
+    
+    enum TripStatus <<enumeration>> {
+        REQUESTED, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED
+    }
+    
+    enum DriverStatus <<enumeration>> {
+        OFFLINE, ONLINE, IN_TRIP
+    }
+    
+    class Location {
+        - _latitude: float
+        - _longitude: float
+        + distance_to(other): float
+    }
+    
+    class Vehicle {
+        - _type: RideType
+        - _model: str
+        + get_type(): RideType
+    }
+}
+
+' ============================================================
+' PACKAGE 2: USER HIERARCHY & OBSERVER
+' ============================================================
+
+package "User Hierarchy" as PKG_USERS #f5f5f5 {
+    abstract class TripObserver <<abstract>> {
+        + {abstract} on_update(trip)
+    }
+    
+    abstract class User <<abstract>> {
+        - _id: str
+        - _name: str
+        + add_observer(observer)
+        + remove_observer(observer)
+        + notify_observers(trip)
+    }
+    
+    class Rider {
+        - _rating: float
+        + get_rating(): float
+    }
+    
+    class Driver {
+        - _vehicle: Vehicle
+        - _current_location: Location
+        - _status: DriverStatus
+        + get_vehicle(): Vehicle
+        + set_location(location)
+    }
+}
+
+' ============================================================
+' PACKAGE 3: TRIP & STATE PATTERN
+' ============================================================
+
+package "Trip & State Pattern" as PKG_TRIP #f5f5f5 {
+    class Trip {
+        - _id: str
+        - _status: TripStatus
+        - _rider: Rider
+        - _driver: Driver
+        - _pickup: Location
+        - _dropoff: Location
+        + assign_driver(driver)
+        + start_trip()
+        + complete_trip()
+        + get_status(): TripStatus
+    }
+    
+    class TripBuilder <<Builder>> {
+        - _trip: Trip
+        + with_rider(rider): TripBuilder
+        + with_pickup(location): TripBuilder
+        + with_dropoff(location): TripBuilder
+        + build(): Trip
+    }
+    
+    abstract class TripState <<State>> {
+        + {abstract} handle(trip)
+    }
+    
+    class RequestedState <<State>> {
+        + handle(trip)
+    }
+    
+    class AssignedState <<State>> {
+        + handle(trip)
+    }
+    
+    class InProgressState <<State>> {
+        + handle(trip)
+    }
+    
+    class CompletedState <<State>> {
+        + handle(trip)
+    }
+}
+
+' ============================================================
+' PACKAGE 4: STRATEGY PATTERNS
+' ============================================================
+
+package "Strategy Patterns" as PKG_STRATEGIES #f5f5f5 {
+    abstract class PricingStrategy <<Strategy>> {
+        + {abstract} calculate_price(trip): float
+    }
+    
+    class FlatRatePricingStrategy <<Strategy>> {
+        + calculate_price(trip): float
+    }
+    
+    class VehicleBasedPricingStrategy <<Strategy>> {
+        + calculate_price(trip): float
+    }
+    
+    abstract class DriverMatchingStrategy <<Strategy>> {
+        + {abstract} find_driver(riders, trip): Driver
+    }
+    
+    class NearestDriverMatchingStrategy <<Strategy>> {
+        + find_driver(riders, trip): Driver
+    }
+}
+
+' ============================================================
+' PACKAGE 5: SERVICE & DEMO
+' ============================================================
+
+package "Service & Demo" as PKG_SERVICE #f5f5f5 {
+    class RideSharingService <<Singleton>> {
+        - _instance: RideSharingService
+        - _riders: dict
+        - _drivers: dict
+        - _trips: dict
+        + {static} get_instance(): RideSharingService
+        + request_ride(rider, pickup, dropoff)
+        + assign_driver(trip, driver)
+        + complete_trip(trip_id)
+    }
+    
+    class RideSharingServiceDemo {
+        + run_demo()
+    }
+}
+
+' ============================================================
+' PACKAGE 6: NEW FEATURES
+' ============================================================
+
+package "New Features" as PKG_NEW #f5f5f5 {
+    class PriceComparator <<NEW>> {
+        {static} + get_ors_route(...): dict
+        {static} + get_uber_prices(...): dict
+        {static} + calculate_our_price(...): float
+        {static} + run_comparison()
+    }
+    
+    note top of PriceComparator
+        <b>NOUVEAU: PriceComparator</b>
+        Analyse comparative des tarifs vs Uber.
+        11 fonctions statiques, ORS API + Haversine fallback.
+        Formule: prix = BASE + (km × RATE_KM) + (min × RATE_MIN), min FLOOR
+        8% moins cher qu'Uber X.
+        Utilisation: python price_comparator.py
+    end note
+}
+
+' ============================================================
+' PACKAGE 7: ETA PREDICTION
+' ============================================================
+
+package "ETA Prediction" as PKG_ETA #f5f5f5 {
+    class EtatPredict <<NEW>> {
+        {static} + get_ors_route(...): dict
+        {static} + get_traffic_coefficient(...): dict
+        {static} + get_risk_zone_factor(...): dict
+        {static} + get_driver_eta_factor(driver): dict
+        {static} + train_eta_model(): tuple
+        {static} + predict_eta(...): float
+        {static} + get_uber_eta(...): float
+        {static} + run_eta_demo()
+    }
+    
+    note right of EtatPredict
+        <b>NOUVEAU: Module de Prédiction d'ETA</b>
+        Prédit l'ETA du trajet avec plusieurs sources de données.
+        ORS API + Haversine fallback, trafic temps réel, zones à risque, 
+        scoring des chauffeurs, régression linéaire ML (sklearn).
+        Comparaison avec modèle Uber simplifié.
+        Entrées: [base_min, traffic_coeff, risk_factor, driver_factor, dist_km]
+        500 trajets simulés pour entraînement.
+        Utilisation: python etat_predict.py
+    end note
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' Inheritance - Observer Pattern
+TripObserver <|-- User
+User <|-- Rider
+User <|-- Driver
+
+' Inheritance - State Pattern
+TripState <|-- RequestedState
+TripState <|-- AssignedState
+TripState <|-- InProgressState
+TripState <|-- CompletedState
+
+' Inheritance - Strategy Pattern
+PricingStrategy <|-- FlatRatePricingStrategy
+PricingStrategy <|-- VehicleBasedPricingStrategy
+DriverMatchingStrategy <|-- NearestDriverMatchingStrategy
+
+' Compositions
+Trip --> TripState : _state
+Trip --> Rider : _rider
+Trip --> Driver : _driver
+Trip --> Location : _pickup
+Trip --> Location : _dropoff
+Driver --> Vehicle : _vehicle
+Driver --> Location : _current_location
+
+' Aggregations
+RideSharingService o--> Rider : manages
+RideSharingService o--> Driver : manages
+RideSharingService o--> Trip : manages
+RideSharingService --> PricingStrategy : uses
+RideSharingService --> DriverMatchingStrategy : uses
+
+' Dependencies
+Trip ..> TripStatus : uses
+Trip ..> TripObserver : notifies
+TripBuilder ..> Trip : creates
+TripBuilder ..> Rider : uses
+TripBuilder ..> Location : uses
+PricingStrategy ..> Location : uses
+PricingStrategy ..> RideType : uses
+DriverMatchingStrategy ..> Driver : uses
+DriverMatchingStrategy ..> Location : uses
+RideSharingServiceDemo ..> RideSharingService : uses
+EtatPredict ..> Trip : analyzes
+EtatPredict ..> Location : uses
+PriceComparator ..> Location : uses
+
+' ============================================================
+' LEGEND
+' ============================================================
+
+legend bottom left
+    |= Couleur |= Signification |
+    | <THEME_ENUM> | Énumération |
+    | <THEME_ABSTRACT> | Classe abstraite |
+    | <THEME_STRATEGY> | Stratégie (Pattern) |
+    | <THEME_STATE> | État (Pattern) |
+    | <THEME_BUILDER> | Builder (Pattern) |
+    | <THEME_SINGLETON> | Singleton (Pattern) |
+    | <THEME_NEW> | Nouvelle fonctionnalité |
+end legend
+
+@enduml

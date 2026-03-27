@@ -62,11 +62,10 @@ abstract class TripObserver <<Observer>> {
 }
 
 note top of TripObserver
-  <<Observer>>
-  Interface ABC.
-  Rider et Driver s'y abonnent.
-  Trip notifie a chaque
-  changement d'etat.
+  <b>[7] OBSERVER PATTERN</b>
+  Interface TripObserver permet à Rider et Driver
+  de s'abonner aux changements d'état du Trip.
+  Trip notifie ses observateurs à chaque transition.
 end note
 
 ' ============================================================
@@ -132,19 +131,10 @@ class DriverRating <<NEW>> {
 
 note bottom of DriverRating
   <b>AMELIORATION 2 — Driver Rating</b>
-  <b>Moyenne ponderee (EMA)</b>
-  Les notes recentes comptent plus.
-  alpha=0.3 : la derniere course
-  pese 30% de la note finale.
-  ----
-  Seuils automatiques :
-  < 4.6 -> avertissement
-  < 4.2 -> desactivation
-  ----
-  Inspire du systeme Uber 5 etoiles.
-  Comparatif : EMA choisi plutot que
-  moyenne simple (biaisee) ou ML
-  (trop complexe pour ce projet).
+  Classe DriverRating gère notation des chauffeurs.
+  Moyenne pondérée (EMA, alpha=0.3) : notes récentes pèsent plus.
+  Seuils : alerte <4.6 | désactivation <4.2.
+  Améliore qualité service & rétention passagers.
 end note
 
 ' ============================================================
@@ -234,12 +224,10 @@ abstract class TripState <<State>> {
 }
 
 note top of TripState
-  <<State>>
-  Comportement du Trip
-  selon l'etat courant.
-  Transitions :
-  REQUESTED -> ASSIGNED
-  -> IN_PROGRESS -> COMPLETED
+  <b>[5] PATTERN STATE</b>
+  TripState est une classe abstraite qui permet au Trip
+  de changer de comportement selon son état courant.
+  Quatre états concrets gèrent les transitions : Requested -> Assigned -> In_Progress -> Completed.
 end note
 
 class RequestedState <<State>> {
@@ -279,9 +267,11 @@ abstract class PricingStrategy <<Strategy>> {
 }
 
 note top of PricingStrategy
-  <<Strategy>>
-  Algorithme de tarification
-  interchangeable a l'execution.
+  <b>[13-16] PATTERN STRATEGY — Tarification</b>
+  PricingStrategy interface avec 3 implémentations :
+  FlatRate (tarif fixe), VehicleBased (par km),
+  DynamicPricing (NEW - surge pricing).
+  Permet changer stratégie à l'exécution sans modifier RideSharingService.
 end note
 
 class FlatRatePricingStrategy <<Strategy>> {
@@ -317,19 +307,11 @@ class DynamicPricingStrategy <<NEW>> {
 }
 
 note bottom of DynamicPricingStrategy
-  <b>AMELIORATION 1 — Surge Pricing</b>
-  <b>Tarification dynamique</b>
-  Multiplicateur selon ratio
-  demande / offre en temps reel.
-  ----
-  ratio < 0.7 : pas de surge (x1)
-  ratio >= 0.7 : surge lineaire
-  ratio >= 1.0 : surge max (x3)
-  ----
-  Inspire du modele Uber.
-  Comparatif : modele lineaire
-  choisi plutot que ML (trop complexe)
-  ou tarif fixe (pas rentable).
+  <b>AMELIORATION 1 — Surge Pricing Dynamique</b>
+  DynamicPricingStrategy calcule multiplicateur tarif
+  basé sur ratio (demandes actives / drivers disponibles).
+  Ratio <0.7: x1 | 0.7-1.0: surge linéaire | >=1.0: x3.
+  Améliore rentabilité en heures de pointe.
 end note
 
 ' ============================================================
@@ -341,9 +323,11 @@ abstract class DriverMatchingStrategy <<Strategy>> {
 }
 
 note top of DriverMatchingStrategy
-  <<Strategy>>
-  Algorithme de matching
-  interchangeable a l'execution.
+  <b>[17-19] PATTERN STRATEGY — Assignation Driver</b>
+  DriverMatchingStrategy interface avec NearestDriver.
+  NearestDriver trouve chauffeurs disponibles du type voulu,
+  triés par proximité au pickup (max 5km).
+  Permet implémenter d'autres stratégies ultérieurement.
 end note
 
 class NearestDriverMatchingStrategy <<Strategy>> {
@@ -379,18 +363,13 @@ class RideSharingService <<Singleton>> {
 }
 
 note right of RideSharingService
-  <<Singleton>>
-  Thread-safe via double-check
-  locking (_instance + _lock).
+  [1]RideSharing plateforme connect Riders (passagers) & Drivers (chauffeurs).
+  Gère cycle de vie trajet : demande -> complétion avec assignation driver,
+  calcul tarif & ETA. Les 3 axes : hiérarchie User, domaine Trip, orchestration Service.
   ----
-  <b>AMELIORATION 1</b> : utilise
-  DynamicPricingStrategy via
-  le pattern Strategy existant.
-  ----
-  <b>AMELIORATION 2</b> : nouvelle
-  methode rate_driver() pour
-  noter les chauffeurs apres
-  une course terminee.
+  <b>[6] ORCHESTRATION — SINGLETON</b>
+  RideSharingService centralise gestion riders, drivers, trips.
+  Instance unique (Singleton) thread-safe. Applique stratégies tarification & assignation.
 end note
 
 ' ============================================================
@@ -475,6 +454,38 @@ RideSharingService "1" o--> "1"   DriverMatchingStrategy : _driver_matching_stra
 RideSharingServiceDemo ..> RideSharingService : utilise
 
 ' ============================================================
+'  ANNOTATIONS NARRATIVES
+' ============================================================
+
+note top of User
+  <b>[2] HIERARCHIE UTILISATEUR</b>
+  Classe abstraite User = base pour Rider (passager) & Driver (chauffeur).
+  Rider demande trajets. Driver possède Vehicle et peut être assigné.
+end note
+
+note left of Trip
+  <b>[3-4] DOMAINE METIER — TRIP</b>
+  Trip représente trajet liant Rider à Driver entre 2 Locations.
+  Gère statut via pattern State : Requested -> Assigned -> In_Progress -> Completed.
+  ----
+  <b>[8-9-10] PATTERNS ORCHESTRATION & ROLES</b>
+  STATE : TripState + 4 états concrets gèrent transitions.
+  OBSERVER : Trip notifie Rider & Driver à chaque changement.
+  BUILDER : TripBuilder construction étape par étape.
+  Rider & Driver implémentent TripObserver et s'abonnent.
+end note
+
+note right of Location
+  <b>RELATIONS — 3 TYPES</b>
+  Compositions (forte) : Trip {1}*--{1} TripState, Rider, {0..1} Driver,
+  {2} Locations | Driver {1}*--{1} Vehicle & Location
+  ----
+  Agrégations (faible) : RideSharingService {1}o--{*} Riders, Drivers, Trips
+  ----
+  Dépendances : RideSharingService ..> PricingStrategy & DriverMatchingStrategy.
+end note
+
+' ============================================================
 '  LEGENDE
 ' ============================================================
 
@@ -490,4 +501,3 @@ legend bottom left
 end legend
 
 @enduml
-
